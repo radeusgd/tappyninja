@@ -26,6 +26,10 @@ class Item{
 	}
 	Vector2 pos, velocity;
 	public boolean clicked(Vector2 click){
+		/*System.out.print(pos);
+		System.out.print(" ");
+		System.out.println(click);*/
+		if(pos.dst2(click)<=radius*radius+1f) return true;
 		return false;
 	}
 	public void update(float dt){
@@ -34,7 +38,7 @@ class Item{
 		pos.mulAdd(velocity, dt);
 	}
 	public boolean outOfScreen(){
-		return false;
+		return (pos.y<-radius);
 	}
 	public final Vector2 getPos(){
 		return pos;
@@ -66,7 +70,7 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 	
 	private void addItem(){
 		float pos = random.nextFloat()*Gdx.graphics.getWidth();
-		Item item = new Item(new Vector2(pos, 0f), new Vector2((Gdx.graphics.getWidth()*0.5f-pos)*0.3f, 300f));
+		Item item = new Item(new Vector2(pos, 0f), new Vector2((Gdx.graphics.getWidth()*0.5f-pos)*0.3f, 270f+random.nextFloat()*30f));
 		//TODO color
 		items.add(item);
 	}
@@ -95,6 +99,10 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 				genCounter-=deltaTime;
 			}
 			shapes.begin(ShapeType.Filled);
+			for(int i=0;i<lives;i++){
+				shapes.setColor(Color.RED);
+				shapes.circle(i*30f+20f, Gdx.graphics.getHeight()-20f, 15f);
+			}
 			for(Item i : items){
 				i.update(deltaTime);
 				shapes.setColor(Color.GREEN);
@@ -102,6 +110,17 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 				//shapes.circle(i.getPos().x, i.getPos()., Item.radius);
 			}
 			shapes.end();
+			//remove out of screen
+			Array<Item> toRemove = new Array<Item>();
+			for(Item i : items){
+				if(i.outOfScreen()){
+					toRemove.add(i);
+					lives--;
+				}
+			}
+			for(Item i : toRemove){
+				items.removeValue(i, true);
+			}
 		}
 		scoreBatch.begin();
 		font.draw(scoreBatch, "Score: "+Integer.toString(score), 30, 30);
@@ -136,8 +155,20 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 
 	@Override
 	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-		if(lives<=0){
+		if(lives<=0){//menu mode
 			lives=4;//restart game
+		}else{//game mode
+			Array<Item> toRemove = new Array<Item>();
+			Vector2 pos = new Vector2(screenX,Gdx.graphics.getHeight()-screenY);
+			for(Item i : items){
+				if(i.clicked(pos)){
+					toRemove.add(i);
+					score++;
+				}
+			}
+			for(Item i : toRemove){
+				items.removeValue(i, true);
+			}
 		}
 		return false;
 	}
