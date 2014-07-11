@@ -20,9 +20,10 @@ import com.badlogic.gdx.utils.TimeUtils;
 import com.radeusgd.tappyninja.Item.Type;
 
 class Item{
-	public static final float radius = 20f;
+	public static Random rand = new Random();
+	public static float radius = 28f;
 	public enum Type{
-		NORMAL, SUPER, BOMB
+		NORMAL, SUPER, BOMB, LIFE
 	}
 	Type type;
 	Item(Vector2 pos, Vector2 velocity){
@@ -31,6 +32,8 @@ class Item{
 		type = Type.NORMAL;
 	}
 	Vector2 pos, velocity;
+	public float rnd = rand.nextFloat();
+	public boolean living = true;
 	public boolean clicked(Vector2 click){
 		/*System.out.print(pos);
 		System.out.print(" ");
@@ -40,11 +43,11 @@ class Item{
 	}
 	public void update(float dt){
 		velocity.y-=dt*100f;
-		velocity.x-=Math.signum(velocity.x)*dt*30f;
+		velocity.x-=Math.signum(velocity.x)*dt*10f;
 		pos.mulAdd(velocity, dt);
 	}
 	public boolean outOfScreen(){
-		return (pos.y<-radius);
+		return (pos.y<-2f*radius);
 	}
 	public final Vector2 getPos(){
 		return pos;
@@ -62,6 +65,7 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 	
 	@Override
 	public void create () {
+		Item.radius = Math.min(Gdx.graphics.getHeight(),Gdx.graphics.getWidth())/(2f*10f);
 		Gdx.input.setInputProcessor(this);
 		shapes = new ShapeRenderer();
 		scoreBatch = new SpriteBatch();
@@ -76,39 +80,50 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 	
 	private void addItem(){
 		float pos = random.nextFloat()*Gdx.graphics.getWidth();
-		Item item = new Item(new Vector2(pos, 0f), new Vector2((Gdx.graphics.getWidth()*0.5f-pos)*0.3f, 270f+random.nextFloat()*30f));
+		Item item = new Item(new Vector2(pos, -Item.radius), new Vector2((Gdx.graphics.getWidth()*0.5f-pos)*0.3f+0.15f*Gdx.graphics.getWidth()*(random.nextFloat()-0.5f), 230f+random.nextFloat()*70f));
 		float type = random.nextFloat();
-		if(type>0.9){
+		if(type>0.98){//-rndModifier){
+			item.type = Type.LIFE;
+		}
+		else if(type>0.88){//-rndModifier){
 			item.type = Type.SUPER;
-		}else if(type>0.75){
+		}else if(type>0.78){
 			item.type = Type.BOMB;
 		}
 		items.add(item);
 	}
 	
+	float rndModifier = 0f;
 	float genCounter = 0;
-	float genSpeed = 1.2f;
+	private final float startGenSpeed = 1.1f;
+	float genSpeed = startGenSpeed;
 	
 	private double currentTime;
+	private double gameOverTime=-1.f;
 	
 	@Override
 	public void render () {
 		double newTime = TimeUtils.millis() / 1000.0;
-        double frameTime = Math.min(newTime - currentTime, 0.25);
+        double frameTime = Math.min(newTime - currentTime, 0.3);
         float deltaTime = (float)frameTime;
         currentTime = newTime;
-        
+        if(lives<=0 && gameOverTime==0f){
+        	gameOverTime = currentTime;
+        }
 		Gdx.gl.glClearColor(0.2f, 0.5f, 1f, 1f);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		if(lives>0){//game mode
-			genSpeed -= deltaTime * 0.01f;
-			genSpeed = Math.max(0.07f, genSpeed);
+			genSpeed -= deltaTime * (0.8f/60f);
+			genSpeed = Math.max(0.37f, genSpeed);
+			//if(genSpeed<0.5f) rndModifier = 0.02f;
 			if(genCounter<=0f){
 				genCounter = genSpeed;
 				addItem();
 			}else{
 				genCounter-=deltaTime;
 			}
+			Gdx.gl.glEnable(GL20.GL_BLEND);
+		    Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 			shapes.begin(ShapeType.Filled);
 			for(int i=0;i<lives;i++){
 				shapes.setColor(Color.RED);
@@ -116,28 +131,42 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 			}
 			for(Item i : items){
 				i.update(deltaTime);
+				float alpha = (i.living) ? 0.9f : 0.3f;
 				switch(i.type){
 				case NORMAL:
-					shapes.setColor(Color.GREEN);
+					shapes.setColor(new Color(0f, 0.8f+0.2f*i.rnd, 0f, alpha));
 					break;
 				case SUPER:
-					shapes.setColor(Color.BLUE);
+					shapes.setColor(new Color(0f, 0.3f-0.3f*i.rnd, 0.8f+0.2f*i.rnd, alpha));
 					break;
 				case BOMB:
-					shapes.setColor(Color.BLACK);
+					shapes.setColor(new Color(0.15f*i.rnd, 0.15f*i.rnd, 0.15f*i.rnd, alpha));
+					break;
+				case LIFE:
+					shapes.setColor(new Color(0.8f+0.2f*i.rnd, 0f, 0f, alpha));
 					break;
 				}
 				shapes.circle(i.getPos().x, i.getPos().y, Item.radius);
 				//shapes.circle(i.getPos().x, i.getPos()., Item.radius);
 			}
 			shapes.end();
+			Gdx.gl.glDisable(GL20.GL_BLEND);
 			//remove out of screen
+			boolean markLives = false;
 			Array<Item> toRemove = new Array<Item>();
 			for(Item i : items){
 				if(i.outOfScreen()){
 					toRemove.add(i);
-					if(i.type!=Item.Type.BOMB)
+					if(i.living && i.type==Type.NORMAL){
 						lives--;
+						markLives=true;
+						break;
+					}
+				}
+			}
+			if(markLives){
+				for(Item i : items){
+					i.living = false;
 				}
 			}
 			for(Item i : toRemove){
@@ -177,29 +206,37 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 
 	@Override
 	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-		if(lives<=0){//menu mode
+		if(lives<=0 && currentTime - gameOverTime > 2f){//menu mode
+			gameOverTime = 0f;
 			score=0;
 			lives=4;//restart game
+			genSpeed = startGenSpeed;
 			items.clear();
 		}else{//game mode
 			Array<Item> toRemove = new Array<Item>();
 			Vector2 pos = new Vector2(screenX,Gdx.graphics.getHeight()-screenY);
+			int plusScore = 0;
 			for(Item i : items){
 				if(i.clicked(pos)){
 					toRemove.add(i);
 					switch(i.type){
 					case NORMAL:
-						score++;
+						plusScore++;
 						break;
 					case SUPER:
-						score+=5;
+						plusScore+=2;
+						score++;
 						break;
 					case BOMB:
 						lives--;
 						break;
+					case LIFE:
+						lives++;
+						break;
 					}
 				}
 			}
+			score += plusScore*plusScore;
 			for(Item i : toRemove){
 				items.removeValue(i, true);
 			}
