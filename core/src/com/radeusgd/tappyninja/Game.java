@@ -7,7 +7,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Texture;
+//import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
@@ -42,7 +42,7 @@ class Item{
 		return false;
 	}
 	public void update(float dt){
-		velocity.y-=dt*100f;
+		velocity.y-=dt*(Gdx.graphics.getHeight()*100f/500f);
 		velocity.x-=Math.signum(velocity.x)*dt*10f;
 		pos.mulAdd(velocity, dt);
 	}
@@ -65,7 +65,7 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 	
 	@Override
 	public void create () {
-		Item.radius = Math.min(Gdx.graphics.getHeight(),Gdx.graphics.getWidth())/(2f*10f);
+		Item.radius = Math.max(Gdx.graphics.getHeight(),Gdx.graphics.getWidth())/(2f*14f);
 		Gdx.input.setInputProcessor(this);
 		shapes = new ShapeRenderer();
 		scoreBatch = new SpriteBatch();
@@ -80,7 +80,7 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 	
 	private void addItem(){
 		float pos = random.nextFloat()*Gdx.graphics.getWidth();
-		Item item = new Item(new Vector2(pos, -Item.radius), new Vector2((Gdx.graphics.getWidth()*0.5f-pos)*0.3f+0.15f*Gdx.graphics.getWidth()*(random.nextFloat()-0.5f), 230f+random.nextFloat()*70f));
+		Item item = new Item(new Vector2(pos, -Item.radius), new Vector2((Gdx.graphics.getWidth()*0.5f-pos)*0.3f+0.15f*Gdx.graphics.getWidth()*(random.nextFloat()-0.5f), Gdx.graphics.getHeight()*(230f+random.nextFloat()*70f)/500f));
 		float type = random.nextFloat();
 		if(type>0.98){//-rndModifier){
 			item.type = Type.LIFE;
