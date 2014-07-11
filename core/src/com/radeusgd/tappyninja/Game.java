@@ -17,12 +17,18 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.TimeUtils;
+import com.radeusgd.tappyninja.Item.Type;
 
 class Item{
 	public static final float radius = 20f;
+	public enum Type{
+		NORMAL, SUPER, BOMB
+	}
+	Type type;
 	Item(Vector2 pos, Vector2 velocity){
 		this.pos = pos;
 		this.velocity = velocity;
+		type = Type.NORMAL;
 	}
 	Vector2 pos, velocity;
 	public boolean clicked(Vector2 click){
@@ -71,7 +77,12 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 	private void addItem(){
 		float pos = random.nextFloat()*Gdx.graphics.getWidth();
 		Item item = new Item(new Vector2(pos, 0f), new Vector2((Gdx.graphics.getWidth()*0.5f-pos)*0.3f, 270f+random.nextFloat()*30f));
-		//TODO color
+		float type = random.nextFloat();
+		if(type>0.9){
+			item.type = Type.SUPER;
+		}else if(type>0.75){
+			item.type = Type.BOMB;
+		}
 		items.add(item);
 	}
 	
@@ -105,7 +116,17 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 			}
 			for(Item i : items){
 				i.update(deltaTime);
-				shapes.setColor(Color.GREEN);
+				switch(i.type){
+				case NORMAL:
+					shapes.setColor(Color.GREEN);
+					break;
+				case SUPER:
+					shapes.setColor(Color.BLUE);
+					break;
+				case BOMB:
+					shapes.setColor(Color.BLACK);
+					break;
+				}
 				shapes.circle(i.getPos().x, i.getPos().y, Item.radius);
 				//shapes.circle(i.getPos().x, i.getPos()., Item.radius);
 			}
@@ -115,7 +136,8 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 			for(Item i : items){
 				if(i.outOfScreen()){
 					toRemove.add(i);
-					lives--;
+					if(i.type!=Item.Type.BOMB)
+						lives--;
 				}
 			}
 			for(Item i : toRemove){
@@ -156,14 +178,26 @@ public class Game extends ApplicationAdapter implements InputProcessor{
 	@Override
 	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
 		if(lives<=0){//menu mode
+			score=0;
 			lives=4;//restart game
+			items.clear();
 		}else{//game mode
 			Array<Item> toRemove = new Array<Item>();
 			Vector2 pos = new Vector2(screenX,Gdx.graphics.getHeight()-screenY);
 			for(Item i : items){
 				if(i.clicked(pos)){
 					toRemove.add(i);
-					score++;
+					switch(i.type){
+					case NORMAL:
+						score++;
+						break;
+					case SUPER:
+						score+=5;
+						break;
+					case BOMB:
+						lives--;
+						break;
+					}
 				}
 			}
 			for(Item i : toRemove){
